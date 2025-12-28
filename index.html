@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Box | المرجع العلمي</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #00f2fe;
+            --secondary-color: #4facfe;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .science-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(0, 242, 254, 0.2);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .sci-title {
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 10px var(--primary-color);
+        }
+
+        .folder-card, .file-card {
+            transition: all 0.3s ease;
+        }
+
+        .folder-card:hover, .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 242, 254, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        /* Animation for Refresh Button */
+        .spin-click:active {
+            transform: rotate(360deg);
+            transition: transform 0.5s ease;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: var(--secondary-color); border-radius: 4px; }
+
+        /* === Styles for Multi-Select Feature === */
+        .file-checkbox {
+            position: absolute;
+            top: 10px;
+            right: 10px; /* مكان الشيك بوكس */
+            width: 20px;
+            height: 20px;
+            z-index: 30;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+            transform: scale(1.1);
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .file-card:hover .file-checkbox, .file-checkbox:checked {
+            opacity: 1;
+        }
+
+        .file-selected {
+            border-color: var(--primary-color) !important;
+            background-color: rgba(0, 242, 254, 0.1) !important;
+        }
+
+        /* Floating Action Bar */
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--primary-color);
+            padding: 12px 24px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .action-bar.active {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div class="science-bg" id="particles-container"></div>
+
+    <header class="glass-panel sticky top-0 z-50 px-6 py-4 mb-8">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="app.goHome()">
+                <i class="fa-solid fa-atom text-4xl text-cyan-400 fa-spin-slow" style="animation-duration: 10s;"></i>
+                <div>
+                    <h1 class="text-2xl font-bold sci-title tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">SCIENCE BOX</h1>
+                    <p class="text-xs text-gray-400">بوابتك للمراجع الأكاديمية</p>
+                </div>
+            </div>
+
+            <button id="admin-toggle-btn" onclick="app.toggleAdminMode()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full border border-slate-600 transition">
+                <i class="fa-solid fa-user-shield ml-2"></i> دخول المشرف
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 flex-grow mb-10 pb-20"> 
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <nav class="flex text-gray-300 text-sm w-full md:w-auto overflow-x-auto whitespace-nowrap">
+                <ol class="list-none p-0 inline-flex" id="breadcrumbs"></ol>
+            </nav>
+
+            <div class="relative w-full md:w-1/3">
+                <input type="text" id="search-input" oninput="app.handleSearch(this.value)" placeholder="ابحث عن محاضرة، مادة، ملف..." 
+                    class="w-full bg-slate-800/80 border border-slate-600 text-white px-4 py-2 pr-10 rounded-lg focus:outline-none focus:border-cyan-400 transition placeholder-gray-500">
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <i class="fa-solid fa-search text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading-indicator" class="hidden text-center py-10">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-cyan-400"></i>
+            <p class="text-gray-400 mt-2" id="loading-text">جاري الاتصال بقاعدة البيانات...</p>
+        </div>
+
+        <div id="admin-controls" class="hidden glass-panel p-4 rounded-xl mb-8 border-l-4 border-yellow-500">
+            <h3 class="font-bold text-yellow-500 mb-3 flex justify-between items-center">
+                <span><i class="fa-solid fa-tools ml-2"></i> لوحة التحكم</span>
+                <span class="text-xs font-normal text-gray-400">وضع التعديل</span>
+            </h3>
+            <div class="flex gap-3 flex-wrap items-center">
+                <button onclick="app.openModal('import-drive')" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2 border border-yellow-500/50 shadow-lg shadow-yellow-500/20">
+                    <i class="fa-brands fa-google-drive"></i> استيراد جديد
+                </button>
+                <div class="w-px h-8 bg-gray-600 mx-2 hidden md:block"></div>
+                <button onclick="app.openModal('add-folder')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm">
+                    <i class="fa-solid fa-folder-plus ml-2"></i> مجلد يدوي
+                </button>
+                <button onclick="app.openModal('add-file')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition text-sm">
+                    <i class="fa-solid fa-file-upload ml-2"></i> ملف يدوي
+                </button>
+                <div class="w-px h-8 bg-gray-600 mx-2 hidden md:block"></div>
+                <button onclick="app.wipeAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-skull-crossbones"></i> حذف الموقع بالكامل
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-2">* لتحديث مجلد معين، اضغط على أيقونة التحديث <i class="fa-solid fa-sync text-cyan-400"></i> الموجودة فوق المجلد.</p>
+        </div>
+
+        <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+
+        <div id="empty-state" class="hidden text-center py-20">
+            <i class="fa-solid fa-wind text-6xl text-gray-600 mb-4"></i>
+            <p class="text-xl text-gray-400">لا توجد ملفات هنا بعد...</p>
+        </div>
+
+    </main>
+
+    <div id="selection-bar" class="action-bar">
+        <span class="text-white font-bold text-sm whitespace-nowrap" id="selected-count">0 ملف محدد</span>
+        <div class="h-6 w-px bg-gray-600"></div>
+        
+        <button onclick="app.copyLinksForNotebook()" class="flex items-center gap-2 text-white hover:text-cyan-400 transition font-bold text-sm whitespace-nowrap">
+            <i class="fa-solid fa-robot"></i> نسخ لـ NotebookLM
+        </button>
+        
+        <button onclick="app.clearSelection()" class="text-gray-400 hover:text-red-400 text-sm whitespace-nowrap">
+            إلغاء
+        </button>
+    </div>
+
+    <footer class="glass-panel py-6 mt-auto">
+        <div class="container mx-auto text-center">
+            <p class="text-gray-400 text-sm">
+                تم التنفيذ بواسطة <span class="text-cyan-400 font-bold mx-1">Sohaib</span> &copy; <span id="year"></span>
+            </p>
+            <div class="flex justify-center gap-6 mt-3">
+                <a href="https://www.facebook.com/sohaibhossam1" target="_blank" class="text-gray-400 hover:text-blue-600 transition transform hover:scale-110 duration-300">
+                    <i class="fa-brands fa-facebook text-2xl"></i>
+                </a>
+                <a href="https://www.linkedin.com/in/sohaib-elsharawy-b26188320/" target="_blank" class="text-gray-400 hover:text-blue-400 transition transform hover:scale-110 duration-300">
+                    <i class="fa-brands fa-linkedin text-2xl"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Welcome Modal (رسالة الشكر والدعاء) -->
+    <div id="modal-welcome" class="fixed inset-0 bg-black/90 hidden z-[70] flex items-center justify-center backdrop-blur-md">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-lg mx-4 text-center relative border border-cyan-500/30 shadow-2xl shadow-cyan-500/20 transform transition-all scale-100">
+            <!-- زخرفة -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+            <div class="mb-6 relative z-10">
+                <i class="fa-solid fa-hands-praying text-5xl text-cyan-400 mb-4 animate-pulse"></i>
+                <h2 class="text-2xl font-bold text-white mb-2 sci-title">رسالة شكر وتقدير</h2>
+                <div class="h-1 w-20 bg-gradient-to-r from-cyan-500 to-blue-500 mx-auto rounded-full"></div>
+            </div>
+
+            <p class="text-gray-300 text-lg leading-relaxed mb-6 relative z-10">
+                نتقدم بخالص الشكر والامتنان لكل من ساهم في إعداد وإنجاز هذا المرجع العلمي.
+                <br><br>
+                نرجو منكم خالص الدعاء لنا <span class="text-cyan-400 font-bold">بالنجاح والتوفيق والهداية</span> في مسيرتنا العلمية والعملية.
+            </p>
+
+            <div class="border-t border-slate-700/50 pt-4 mt-6 relative z-10">
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">القائمون على الموقع</p>
+                <p class="text-xs text-cyan-300 font-mono tracking-wider">
+                    صهيب، باسل، عمر، شروق، شذى، القواص، سلمى مجدي
+                </p>
+            </div>
+
+            <button onclick="app.closeModal('welcome')" class="mt-8 px-8 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-full font-bold shadow-lg shadow-cyan-500/20 transition transform hover:scale-105 relative z-10">
+                ابدأ التصفح <i class="fa-solid fa-arrow-left mr-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-import-drive" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel p-6 rounded-xl w-full max-w-lg mx-4">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-yellow-400">
+                <i class="fa-brands fa-google-drive"></i> استيراد شجري (أول مرة)
+            </h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">رابط المجلد</label>
+                    <input type="text" id="import-drive-link" placeholder="https://drive.google.com/drive/folders/..." class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Google Drive API Key</label>
+                    <input type="text" id="import-api-key" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm font-mono">
+                    <p class="text-[9px] text-gray-500 mt-1">سيتم حفظ المفتاح في متصفحك لسهولة الاستخدام لاحقاً.</p>
+                </div>
+            </div>
+            <div id="import-status" class="mt-4 text-xs text-center hidden min-h-[20px]"></div>
+            <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-700">
+                <button onclick="app.closeModal('import-drive')" class="px-4 py-2 text-gray-400 hover:text-white text-sm">إلغاء</button>
+                <button onclick="app.importFromDrive()" id="btn-do-import" class="px-4 py-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-download-alt"></i> استيراد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-folder" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel p-6 rounded-xl w-full max-w-md mx-4">
+            <h3 class="text-xl font-bold mb-4">إضافة مجلد يدوياً</h3>
+            <input type="text" id="new-folder-name" placeholder="اسم المجلد" class="w-full bg-slate-900 border border-slate-600 rounded p-2 mb-4 text-white">
+            <div class="flex justify-end gap-2">
+                <button onclick="app.closeModal('add-folder')" class="px-4 py-2 text-gray-400 hover:text-white">إلغاء</button>
+                <button onclick="app.createFolder()" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">إنشاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-file" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel p-6 rounded-xl w-full max-w-md mx-4">
+            <h3 class="text-xl font-bold mb-4">إضافة ملف يدوياً</h3>
+            <div class="space-y-3">
+                <input type="text" id="new-file-name" placeholder="اسم الملف" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white">
+                <input type="text" id="new-file-link" placeholder="الرابط" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="app.closeModal('add-file')" class="px-4 py-2 text-gray-400 hover:text-white">إلغاء</button>
+                <button onclick="app.createFile()" class="px-4 py-2 bg-green-600 rounded hover:bg-green-700">إضافة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-file-action" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel p-8 rounded-xl w-full max-w-lg mx-4 text-center relative">
+            <i class="fa-solid fa-file-pdf text-6xl text-red-500 mb-4 block mx-auto"></i>
+            <h3 id="action-file-name" class="text-2xl font-bold mb-2">اسم الملف</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                <a id="btn-preview" target="_blank" class="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition">
+                    <i class="fa-solid fa-eye"></i> معاينة
+                </a>
+                <a id="btn-download" href="#" class="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white py-3 rounded-xl transition">
+                    <i class="fa-solid fa-download"></i> تحميل
+                </a>
+            </div>
+            <button onclick="app.closeModal('file-action')" class="mt-6 text-sm text-gray-500 hover:text-white underline">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="modal-notebook-guide" class="fixed inset-0 bg-black/80 hidden z-[60] flex items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel p-8 rounded-xl w-full max-w-lg mx-4 text-center relative border border-purple-500/30">
+            <div class="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-clipboard-check text-3xl text-purple-400"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-2 text-white">تم نسخ الروابط!</h3>
+            <p class="text-gray-300 mb-6">لقد تم نسخ روابط الملفات المحددة إلى الحافظة.</p>
+            
+            <div class="bg-slate-900/50 p-4 rounded-lg text-right text-sm text-gray-400 mb-6 space-y-2">
+                <p>1. سيتم فتح NotebookLM الآن.</p>
+                <p>2. أنشئ نوتة جديدة (New Notebook).</p>
+                <p>3. اضغط على أيقونة <span class="text-white font-bold">Link</span> أو <span class="text-white font-bold">Website</span>.</p>
+                <p>4. الصق الروابط (Paste) التي نسختها للتو.</p>
+            </div>
+
+            <div class="flex justify-center gap-3">
+                <button onclick="app.closeModal('notebook-guide')" class="px-6 py-2 text-gray-400 hover:text-white text-sm">إغلاق</button>
+                <a href="https://notebooklm.google.com/" target="_blank" onclick="app.closeModal('notebook-guide')" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 text-white rounded-lg font-bold shadow-lg shadow-purple-500/20 text-sm flex items-center gap-2">
+                    الذهاب لـ NotebookLM <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, writeBatch, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // إعدادات Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZJI_z4390LzOktd-BrP2tCZjvAd-pfTQ",
+            authDomain: "sciencebox-cf472.firebaseapp.com",
+            projectId: "sciencebox-cf472",
+            storageBucket: "sciencebox-cf472.firebasestorage.app",
+            messagingSenderId: "745880544240",
+            appId: "1:745880544240:web:c2f42c10a9474b8497f335",
+            measurementId: "G-MXS5LKLWB9"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const appId = firebaseConfig.appId;
+
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        // Particles
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            for(let i=0; i<20; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                const size = Math.random() * 5 + 2;
+                particle.style.width = `${size}px`; particle.style.height = `${size}px`;
+                particle.style.left = `${Math.random() * 100}%`; particle.style.top = `${Math.random() * 100}%`;
+                particle.style.animationDuration = `${Math.random() * 10 + 10}s`;
+                particle.style.opacity = Math.random() * 0.5;
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        const app = {
+            data: [], 
+            currentFolderId: null, 
+            isAdmin: false, 
+            searchQuery: '',
+            selectedItems: new Set(), // تخزين العناصر المحددة
+            
+            init: async function() {
+                // إظهار النافذة الترحيبية بعد ثانية
+                setTimeout(() => {
+                    this.openModal('welcome');
+                }, 1000);
+
+                document.getElementById('loading-indicator').classList.remove('hidden');
+                const savedKey = localStorage.getItem('googleDriveApiKey');
+                if(savedKey) document.getElementById('import-api-key').value = savedKey;
+
+                try { await signInAnonymously(auth); } 
+                catch (error) { console.error(error); alert("خطأ في الاتصال"); return; }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+                        onSnapshot(itemsCollection, (snapshot) => {
+                            this.data = [];
+                            snapshot.forEach((doc) => {
+                                this.data.push({ id: doc.id, ...doc.data() });
+                            });
+                            document.getElementById('loading-indicator').classList.add('hidden');
+                            this.render();
+                        });
+                    }
+                });
+            },
+
+            // --- Multi-Select & Notebook Functions ---
+            toggleSelection: function(id) {
+                if (this.selectedItems.has(id)) {
+                    this.selectedItems.delete(id);
+                } else {
+                    this.selectedItems.add(id);
+                }
+                this.render();
+            },
+
+            clearSelection: function() {
+                this.selectedItems.clear();
+                this.render();
+            },
+
+            updateActionBar: function() {
+                const bar = document.getElementById('selection-bar');
+                const countEl = document.getElementById('selected-count');
+                
+                if (this.selectedItems.size > 0) {
+                    bar.classList.add('active');
+                    countEl.textContent = `${this.selectedItems.size} ملف محدد`;
+                } else {
+                    bar.classList.remove('active');
+                }
+            },
+
+            copyLinksForNotebook: function() {
+                const links = [];
+                this.selectedItems.forEach(id => {
+                    const item = this.data.find(i => i.id === id);
+                    if (item && item.url) {
+                        // نحاول استخدام رابط العرض المباشر (WebViewLink)
+                        links.push(item.url);
+                    }
+                });
+
+                if (links.length === 0) return alert("لا توجد روابط صالحة");
+
+                const textToCopy = links.join('\n');
+                // Use execCommand for copy as fallback or primary if iframe restrictions apply
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    this.openModal('notebook-guide');
+                } catch (err) {
+                    console.error('فشل النسخ', err);
+                    alert('فشل نسخ الروابط، الرجاء المحاولة يدوياً.');
+                }
+                document.body.removeChild(textArea);
+            },
+
+            // --- Existing Logic ---
+
+            refreshSpecificFolder: async function(folderId, driveId, folderName) {
+                if (!confirm(`هل تريد تحديث مجلد "${folderName}"؟\nسيتم حذف محتوياته الحالية واستبدالها بالنسخة الجديدة من درايف.`)) return;
+
+                const apiKey = localStorage.getItem('googleDriveApiKey');
+                if(!apiKey) return alert("يجب إدخال API Key أولاً في نافذة الاستيراد وحفظه.");
+
+                document.getElementById('loading-text').textContent = `جاري تحديث: ${folderName}...`;
+                document.getElementById('loading-indicator').classList.remove('hidden');
+
+                const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+
+                try {
+                    const allDescendants = this.getAllDescendants(folderId);
+                    const batchDelete = writeBatch(db);
+                    
+                    allDescendants.forEach(item => {
+                        const ref = doc(db, 'artifacts', appId, 'public', 'data', 'items', item.id);
+                        batchDelete.delete(ref);
+                    });
+                    
+                    await batchDelete.commit();
+                    await this.runRecursiveImport(driveId, folderId, apiKey);
+
+                    alert(`تم تحديث مجلد "${folderName}" بنجاح!`);
+
+                } catch (error) {
+                    console.error(error);
+                    alert("حدث خطأ أثناء التحديث: " + error.message);
+                } finally {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    document.getElementById('loading-text').textContent = "جاري الاتصال بقاعدة البيانات...";
+                }
+            },
+
+            getAllDescendants: function(parentId) {
+                let descendants = [];
+                let children = this.data.filter(item => item.parentId === parentId);
+                descendants.push(...children);
+                children.forEach(child => {
+                    if (child.type === 'folder') {
+                        descendants.push(...this.getAllDescendants(child.id));
+                    }
+                });
+                return descendants;
+            },
+
+            importFromDrive: async function() {
+                const link = document.getElementById('import-drive-link').value;
+                const apiKey = document.getElementById('import-api-key').value;
+                const statusEl = document.getElementById('import-status');
+                const btn = document.getElementById('btn-do-import');
+
+                if (!link || !apiKey) return alert("البيانات ناقصة");
+
+                let rootFolderId = "";
+                const match = link.match(/folders\/([a-zA-Z0-9_-]+)/);
+                if (match) rootFolderId = match[1];
+                else return alert("الرابط غير صحيح");
+
+                localStorage.setItem('googleDriveApiKey', apiKey);
+                statusEl.classList.remove('hidden');
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+
+                try {
+                    await this.runRecursiveImport(rootFolderId, this.currentFolderId, apiKey, (msg) => {
+                        statusEl.innerHTML = `<span class="text-yellow-400"><i class="fa-solid fa-spinner fa-spin"></i> ${msg}</span>`;
+                    });
+                    
+                    statusEl.innerHTML = `<span class="text-green-400">تم الاستيراد بنجاح!</span>`;
+                    setTimeout(() => {
+                        this.closeModal('import-drive');
+                        document.getElementById('import-drive-link').value = '';
+                        statusEl.classList.add('hidden');
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50');
+                    }, 2000);
+
+                } catch (error) {
+                    console.error("Import Error:", error);
+                    statusEl.innerHTML = `<span class="text-red-400">حدث خطأ: ${error.message}</span>`;
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                }
+            },
+
+            runRecursiveImport: async function(driveRootId, parentDbId, apiKey, statusCallback) {
+                const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+                
+                let queue = [{ driveId: driveRootId, parentId: parentDbId }];
+                let totalImported = 0;
+
+                while(queue.length > 0) {
+                    const current = queue.shift(); 
+                    
+                    if(statusCallback) statusCallback(`جاري استيراد المجلدات والملفات... (في الانتظار: ${queue.length})`);
+
+                    let pageToken = null;
+                    
+                    do {
+                        const query = `'${current.driveId}' in parents and trashed = false`;
+                        let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&key=${apiKey}&fields=nextPageToken,files(id,name,mimeType,webViewLink)&pageSize=100`;
+                        
+                        if(pageToken) {
+                            url += `&pageToken=${pageToken}`;
+                        }
+
+                        const response = await fetch(url);
+                        const result = await response.json();
+
+                        if (result.error) throw new Error(result.error.message);
+
+                        const files = result.files;
+                        pageToken = result.nextPageToken;
+
+                        if (files && files.length > 0) {
+                            const batch = writeBatch(db);
+                            let batchCount = 0;
+
+                            for (const file of files) {
+                                const newItemRef = doc(itemsCollection);
+                                const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                                
+                                batch.set(newItemRef, {
+                                    type: isFolder ? 'folder' : 'file',
+                                    name: file.name,
+                                    url: file.webViewLink,
+                                    parentId: current.parentId,
+                                    driveId: file.id, 
+                                    createdAt: serverTimestamp()
+                                });
+
+                                if (isFolder) {
+                                    queue.push({ driveId: file.id, parentId: newItemRef.id });
+                                }
+                                
+                                batchCount++;
+                            }
+                            
+                            await batch.commit();
+                            totalImported += batchCount;
+                        }
+                        
+                    } while (pageToken); 
+                }
+                return totalImported;
+            },
+
+            wipeAllData: async function() {
+                if(!confirm("⚠️ تحذير خطير: سيتم حذف جميع المجلدات والملفات من الموقع بالكامل!\nهل أنت متأكد؟")) return;
+                
+                const secret = prompt("أدخل كلمة 'حذف' لتأكيد العملية:");
+                if(secret !== "حذف") return alert("تم إلغاء العملية.");
+
+                document.getElementById('loading-text').textContent = "جاري حذف البيانات...";
+                document.getElementById('loading-indicator').classList.remove('hidden');
+
+                const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+                
+                try {
+                    const snapshot = await getDocs(itemsCollection);
+                    const batch = writeBatch(db);
+                    
+                    snapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+
+                    await batch.commit();
+                    alert("تم تصفير الموقع بنجاح.");
+                    this.goHome();
+
+                } catch (error) {
+                    console.error(error);
+                    alert("حدث خطأ أثناء الحذف.");
+                } finally {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    document.getElementById('loading-text').textContent = "جاري الاتصال بقاعدة البيانات...";
+                }
+            },
+
+            convertDriveLink: function(url) {
+                let fileId = "";
+                const parts = url.split(/^(([^:\/?#]+):)?(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?/);
+                if (url.indexOf('id=') > -1) {
+                     const match = url.match(/id=([a-zA-Z0-9_-]{25,})/);
+                     if(match) fileId = match[1];
+                } else {
+                    const match = url.match(/\/d\/([a-zA-Z0-9_-]{25,})/);
+                    if(match) fileId = match[1];
+                }
+
+                if (!fileId) return { preview: url, download: url };
+
+                return {
+                    preview: `https://drive.google.com/file/d/${fileId}/preview`,
+                    download: `https://drive.google.com/uc?export=download&id=${fileId}`
+                };
+            },
+
+            toggleAdminMode: function() {
+                if (!this.isAdmin) {
+                    const pass = prompt("أدخل كود المسؤول:");
+                    if (pass === "moovx") {
+                        this.isAdmin = true;
+                        document.getElementById('admin-toggle-btn').innerHTML = '<i class="fa-solid fa-sign-out-alt ml-2"></i> خروج المشرف';
+                        document.getElementById('admin-toggle-btn').classList.replace('bg-slate-800', 'bg-red-600');
+                        document.getElementById('admin-controls').classList.remove('hidden');
+                        this.render(); 
+                    } else {
+                        alert("كلمة المرور خاطئة!");
+                    }
+                } else {
+                    this.isAdmin = false;
+                    document.getElementById('admin-toggle-btn').innerHTML = '<i class="fa-solid fa-user-shield ml-2"></i> دخول المشرف';
+                    document.getElementById('admin-toggle-btn').classList.replace('bg-red-600', 'bg-slate-800');
+                    document.getElementById('admin-controls').classList.add('hidden');
+                    this.render(); 
+                }
+            },
+
+            navigateTo: function(folderId) {
+                this.currentFolderId = folderId;
+                this.searchQuery = ''; 
+                this.clearSelection(); 
+                document.getElementById('search-input').value = '';
+                this.render();
+            },
+
+            goHome: function() {
+                this.currentFolderId = null;
+                this.searchQuery = ''; 
+                this.clearSelection(); 
+                document.getElementById('search-input').value = '';
+                this.render();
+            },
+
+            handleSearch: function(q) {
+                this.searchQuery = q.toLowerCase();
+                this.render();
+            },
+
+            render: function() {
+                const grid = document.getElementById('content-grid');
+                grid.innerHTML = '';
+                let itemsToShow = this.searchQuery 
+                    ? this.data.filter(i => i.name && i.name.toLowerCase().includes(this.searchQuery))
+                    : this.data.filter(i => i.parentId === this.currentFolderId);
+
+                this.renderBreadcrumbs();
+                if (itemsToShow.length === 0) document.getElementById('empty-state').classList.remove('hidden');
+                else document.getElementById('empty-state').classList.add('hidden');
+
+                itemsToShow.forEach(item => {
+                    const el = document.createElement('div');
+                    
+                    if (item.type === 'folder') {
+                        el.className = 'folder-card glass-panel p-6 rounded-xl cursor-pointer flex flex-col items-center justify-center text-center group h-48 relative';
+                        el.onclick = (e) => {
+                            if(!e.target.closest('button')) this.navigateTo(item.id);
+                        };
+                        
+                        const refreshBtn = (this.isAdmin && item.driveId) ? 
+                            `<button onclick="app.refreshSpecificFolder('${item.id}', '${item.driveId}', '${item.name}')" title="تحديث هذا المجلد من درايف" class="absolute top-2 right-2 text-cyan-400 hover:text-white p-2 bg-slate-900/50 hover:bg-cyan-600 rounded-full w-8 h-8 flex items-center justify-center transition hover:rotate-180 z-20 spin-click">
+                                <i class="fa-solid fa-sync text-xs"></i>
+                             </button>` : '';
+
+                        const deleteBtn = this.isAdmin ? 
+                            `<button onclick="app.deleteItem('${item.id}')" class="delete-btn absolute top-2 left-2 text-red-400 hover:text-red-600 p-2 z-20"><i class="fa-solid fa-trash"></i></button>` : '';
+
+                        el.innerHTML = `
+                            ${refreshBtn}
+                            ${deleteBtn}
+                            <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition">
+                                <i class="fa-solid fa-folder text-4xl text-blue-400 group-hover:scale-110 transition"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-gray-100">${item.name}</h3>
+                            <p class="text-xs text-gray-500 mt-1">${this.countItems(item.id)} عنصر</p>
+                        `;
+                    } else {
+                        const isSelected = this.selectedItems.has(item.id);
+                        
+                        el.className = `file-card glass-panel p-4 rounded-xl cursor-pointer flex items-center gap-4 group relative overflow-hidden transition ${isSelected ? 'file-selected' : ''}`;
+                        el.onclick = (e) => { 
+                            if(!e.target.closest('button') && !e.target.closest('input')) this.handleFileClick(item); 
+                        };
+                        
+                        const deleteBtn = this.isAdmin ? 
+                            `<button onclick="app.deleteItem('${item.id}')" class="delete-btn absolute top-2 left-2 text-red-400 hover:text-red-600 bg-slate-900/50 rounded-full w-8 h-8 flex items-center justify-center z-20"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+
+                        el.innerHTML = `
+                            <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); app.toggleSelection('${item.id}')">
+                            ${deleteBtn}
+                            <div class="absolute left-0 top-0 w-1 h-full bg-red-500"></div>
+                            <div class="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-file-pdf text-2xl text-red-500"></i>
+                            </div>
+                            <div class="flex-grow min-w-0">
+                                <h3 class="font-bold text-sm text-gray-200 truncate">${item.name}</h3>
+                                <p class="text-xs text-gray-500 mt-1">PDF Document</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-left text-gray-600 group-hover:text-cyan-400 transition"></i>
+                        `;
+                    }
+                    grid.appendChild(el);
+                });
+
+                this.updateActionBar();
+            },
+
+            countItems: function(folderId) {
+                return this.data.filter(i => i.parentId === folderId).length;
+            },
+
+            renderBreadcrumbs: function() {
+                const bc = document.getElementById('breadcrumbs');
+                bc.innerHTML = '';
+                
+                let homeLi = document.createElement('li');
+                homeLi.innerHTML = `<span class="cursor-pointer hover:text-cyan-400 ${this.currentFolderId === null ? 'text-cyan-400 font-bold' : ''}" onclick="app.goHome()"><i class="fa-solid fa-home"></i> الرئيسية</span>`;
+                bc.appendChild(homeLi);
+
+                if (this.currentFolderId) {
+                    let path = [];
+                    let curr = this.data.find(i => i.id === this.currentFolderId);
+                    while(curr) {
+                        path.unshift(curr);
+                        curr = this.data.find(i => i.id === curr.parentId);
+                    }
+
+                    path.forEach((folder, index) => {
+                        let separator = document.createElement('li');
+                        separator.className = 'mx-2 text-gray-600';
+                        separator.innerHTML = '<i class="fa-solid fa-chevron-left text-xs"></i>';
+                        bc.appendChild(separator);
+
+                        let li = document.createElement('li');
+                        let isLast = index === path.length - 1;
+                        li.innerHTML = `<span class="cursor-pointer hover:text-cyan-400 ${isLast ? 'text-cyan-400 font-bold' : ''}" onclick="app.navigateTo('${folder.id}')">${folder.name}</span>`;
+                        bc.appendChild(li);
+                    });
+                }
+
+                if (this.searchQuery) {
+                     let separator = document.createElement('li');
+                    separator.className = 'mx-2 text-gray-600';
+                    separator.innerHTML = '<i class="fa-solid fa-chevron-left text-xs"></i>';
+                    bc.appendChild(separator);
+                    let li = document.createElement('li');
+                    li.innerHTML = `<span class="text-yellow-400">نتائج البحث: "${this.searchQuery}"</span>`;
+                    bc.appendChild(li);
+                }
+            },
+
+            handleFileClick: function(file) {
+                const links = this.convertDriveLink(file.url);
+                document.getElementById('action-file-name').textContent = file.name;
+                document.getElementById('btn-preview').href = links.preview;
+                document.getElementById('btn-download').href = links.download;
+                this.openModal('file-action');
+            },
+
+            openModal: function(name) {
+                document.getElementById(`modal-${name}`).classList.remove('hidden');
+            },
+            closeModal: function(name) {
+                document.getElementById(`modal-${name}`).classList.add('hidden');
+                if(name === 'add-folder') document.getElementById('new-folder-name').value = '';
+                if(name === 'add-file') {
+                    document.getElementById('new-file-name').value = '';
+                    document.getElementById('new-file-link').value = '';
+                }
+                if(name === 'import-drive') {
+                    document.getElementById('import-drive-link').value = '';
+                    document.getElementById('import-status').classList.add('hidden');
+                }
+            },
+
+            createFolder: function() {
+                const name = document.getElementById('new-folder-name').value;
+                if (!name) return alert('الرجاء كتابة اسم المجلد');
+                
+                const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+                addDoc(itemsCollection, {
+                    type: 'folder',
+                    name: name,
+                    parentId: this.currentFolderId,
+                    createdAt: serverTimestamp()
+                })
+                .then(() => {
+                    this.closeModal('add-folder');
+                })
+                .catch((error) => {
+                    console.error("Error adding document: ", error);
+                    alert("حدث خطأ أثناء الإضافة");
+                });
+            },
+
+            createFile: function() {
+                const name = document.getElementById('new-file-name').value;
+                const link = document.getElementById('new-file-link').value;
+                
+                if (!name || !link) return alert('الرجاء إدخال البيانات كاملة');
+
+                const itemsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'items');
+                addDoc(itemsCollection, {
+                    type: 'file',
+                    name: name,
+                    url: link,
+                    parentId: this.currentFolderId,
+                    createdAt: serverTimestamp()
+                })
+                .then(() => {
+                    this.closeModal('add-file');
+                })
+                .catch((error) => {
+                    console.error("Error adding file: ", error);
+                    alert("حدث خطأ أثناء الإضافة");
+                });
+            },
+
+            deleteItem: function(id) {
+                if(confirm('هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع محتوياته إذا كان مجلداً.')) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'items', id);
+                    deleteDoc(docRef)
+                    .then(() => {
+                        console.log("Document successfully deleted!");
+                    })
+                    .catch((error) => {
+                        console.error("Error removing document: ", error);
+                    });
+                }
+            }
+        };
+
+        window.app = app;
+        app.init();
+
+    </script>
+</body>
+</html>
