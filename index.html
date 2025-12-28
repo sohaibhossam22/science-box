@@ -250,7 +250,7 @@
             <div class="border-t border-slate-700/50 pt-4 mt-6 relative z-10">
                 <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">القائمون على الموقع</p>
                 <p class="text-xs text-cyan-300 font-mono tracking-wider">
-                    صهيب، باسل، عمر، شروق، شذى، القواص، سلمى مجدي
+                    Sohaib Elsharawy
                 </p>
             </div>
 
@@ -354,7 +354,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, writeBatch, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // إعدادات Firebase
         const firebaseConfig = {
@@ -407,7 +407,34 @@
                 const savedKey = localStorage.getItem('googleDriveApiKey');
                 if(savedKey) document.getElementById('import-api-key').value = savedKey;
 
-                try { await signInAnonymously(auth); } 
+                // --- إصلاح زر الرجوع (History API Integration) ---
+                // 1. تعيين الحالة الأولية (الرئيسية) في تاريخ المتصفح
+                history.replaceState({ folderId: null }, '', '');
+
+                // 2. الاستماع لحدث الرجوع (Back Button / Gestures)
+                window.onpopstate = (event) => {
+                    // عند الضغط على رجوع، نستعيد الـ folderId من الحالة المحفوظة
+                    if (event.state) {
+                        this.currentFolderId = event.state.folderId;
+                        this.searchQuery = ''; 
+                        this.clearSelection(); 
+                        document.getElementById('search-input').value = '';
+                        this.render();
+                    } else {
+                        // حالة احتياطية لو فقدنا الحالة
+                        this.currentFolderId = null;
+                        this.render();
+                    }
+                };
+                // -------------------------------------------------
+
+                try { 
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } 
                 catch (error) { console.error(error); alert("خطأ في الاتصال"); return; }
 
                 onAuthStateChanged(auth, (user) => {
@@ -683,7 +710,7 @@
 
             toggleAdminMode: function() {
                 if (!this.isAdmin) {
-                    const pass = prompt("أدخل كود المسؤول:");
+                    const pass = prompt("أدخل كود المسؤول (للتجربة: moovx):");
                     if (pass === "moovx") {
                         this.isAdmin = true;
                         document.getElementById('admin-toggle-btn').innerHTML = '<i class="fa-solid fa-sign-out-alt ml-2"></i> خروج المشرف';
@@ -707,6 +734,10 @@
                 this.searchQuery = ''; 
                 this.clearSelection(); 
                 document.getElementById('search-input').value = '';
+                
+                // إضافة خطوة للتاريخ عند الانتقال
+                history.pushState({ folderId: folderId }, '', '');
+                
                 this.render();
             },
 
@@ -715,6 +746,10 @@
                 this.searchQuery = ''; 
                 this.clearSelection(); 
                 document.getElementById('search-input').value = '';
+                
+                // إضافة خطوة للتاريخ عند العودة للرئيسية
+                history.pushState({ folderId: null }, '', '');
+                
                 this.render();
             },
 
