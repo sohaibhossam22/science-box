@@ -116,10 +116,14 @@
             border-radius: 50px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px; /* Reduced gap slightly for mobile */
             z-index: 100;
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            /* Fluid width for mobile */
+            width: 90%; 
+            max-width: 500px;
+            justify-content: center;
         }
 
         .action-bar.active {
@@ -172,8 +176,9 @@
 
     <div class="science-bg" id="particles-container"></div>
 
-    <header class="glass-panel sticky top-0 z-50 px-6 py-4 mb-8">
-        <div class="container mx-auto flex justify-between items-center">
+    <header class="glass-panel sticky top-0 z-50 px-4 py-4 mb-8">
+        <!-- Changed to flex-col on mobile to center content properly -->
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3 cursor-pointer" onclick="app.goHome()">
                 <i class="fa-solid fa-atom text-4xl text-cyan-400 fa-spin-slow" style="animation-duration: 10s;"></i>
                 <div>
@@ -182,7 +187,8 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <!-- Buttons centered on mobile -->
+            <div class="flex items-center gap-2 flex-wrap justify-center">
                 <!-- زر المذاكرة الجديد -->
                 <button onclick="studyApp.triggerCall()" class="text-sm bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white px-4 py-2 rounded-full shadow-lg transition transform hover:scale-105 flex items-center gap-2 border border-amber-400/30">
                     <i class="fa-solid fa-phone-volume animate-pulse"></i> المذاكرة بتنادي
@@ -302,7 +308,7 @@
                     <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation">
                         <i class="fa-solid fa-phone text-2xl text-white"></i>
                     </div>
-                    <span class="text-sm text-gray-400">رد</span>
+                    <span class="text-sm text-gray-400">رد </span>
                 </button>
             </div>
         </div>
@@ -675,7 +681,7 @@
             },
 
             endSession: function() {
-                this.showAlert('ما بدري على المرقعه! متبقاش تعيط بعدين بقى! 😤', '😤');
+                this.showAlert('قفرت بدري ليه؟ متبقاش تعيط بعدين بقى! 😤', '😤');
                 clearInterval(this.timer);
                 clearInterval(this.autoQuoteInterval);
                 document.getElementById('study-overlay').classList.add('hidden');
