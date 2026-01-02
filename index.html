@@ -308,7 +308,7 @@
                     <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation">
                         <i class="fa-solid fa-phone text-2xl text-white"></i>
                     </div>
-                    <span class="text-sm text-gray-400">رد </span>
+                    <span class="text-sm text-gray-400">رد</span>
                 </button>
             </div>
         </div>
@@ -615,6 +615,9 @@
                 document.getElementById('study-overlay').classList.remove('hidden');
                 document.getElementById('study-overlay').classList.add('flex');
                 
+                // Prevent scrolling on body
+                document.body.style.overflow = 'hidden';
+
                 this.mode = 'focus';
                 this.timeLeft = this.duration.focus;
                 this.isPaused = false;
@@ -687,6 +690,9 @@
                 document.getElementById('study-overlay').classList.add('hidden');
                 document.getElementById('study-overlay').classList.remove('flex');
                 document.getElementById('modal-study-setup').classList.add('hidden');
+                
+                // Re-enable scrolling
+                document.body.style.overflow = 'auto';
             },
 
             updateDisplay: function() {
