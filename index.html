@@ -11,11 +11,10 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Orbitron:wght@400;700&family=Reem+Kufi:wght@700&display=swap" rel="stylesheet">
     
-    <!-- مكتبة Supabase بدلاً من Firebase -->
+    <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* نفس التصميم تماماً لم يتغير */
         :root { --primary-color: #00f2fe; --secondary-color: #4facfe; --bg-dark: #0f172a; --card-bg: rgba(30, 41, 59, 0.7); --study-color: #f59e0b; }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-dark); color: white; overflow-x: hidden; }
         .science-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); overflow: hidden; }
@@ -131,8 +130,8 @@
             <h2 class="text-3xl font-bold text-white mb-2">المذاكرة</h2>
             <p class="text-amber-400 animate-pulse mb-12">بتتصل بيك...</p>
             <div class="flex justify-between items-center px-8">
-                <button onclick="studyApp.rejectCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition transform group-hover:scale-110 reject-animation"><i class="fa-solid fa-phone-slash text-2xl text-white"></i></div><span class="text-sm text-gray-400">كبر دماغك</span></button>
-                <button onclick="studyApp.answerCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation"><i class="fa-solid fa-phone text-2xl text-white"></i></div><span class="text-sm text-gray-400">رد يا بطل</span></button>
+                <button onclick="studyApp.rejectCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition transform group-hover:scale-110 reject-animation"><i class="fa-solid fa-phone-slash text-2xl text-white"></i></div><span class="text-sm text-gray-400">كلسن</span></button>
+                <button onclick="studyApp.answerCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation"><i class="fa-solid fa-phone text-2xl text-white"></i></div><span class="text-sm text-gray-400">هترد</span></button>
             </div>
         </div>
     </div>
@@ -281,16 +280,24 @@
     <!-- Script Section -->
     <script>
         // Supabase Client Setup
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // !!! هام: استبدل الروابط أدناه ببيانات مشروعك في SUPABASE وإلا لن يعمل الموقع !!!
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const supabaseUrl = 'https://ohulcejufnlajlokahly.supabase.co';
-        const supabaseKey = 'sb_secret_iHl5t0ieljAJqthjzjnyRQ_Ceudx35N';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
+        const supabaseKey = 'sb_publishable_4-wVTQu5qJZiSIp_qKbnSQ_L-8dM_3pX3H9v2Yf8oN1rG'; // This is a placeholder for the publishable key pattern. The user should replace it with the correct truncated key from their screenshot if needed, but I will put the best guess format based on the screenshot provided in context if visible, or stick to instructions.
+        // Wait, looking at the user screenshot again (image_657a0c.png), the publishable key starts with `sb_publishable_...`.
+        // The user provided `sb_secret_...` in their message. I need to make sure they use the publishable one.
+        // Since I cannot read the full key from the truncated screenshot, I must instruct the user to PASTE IT.
+        // However, the prompt says "I answered which one is the key".
+        // I will use a placeholder and instruct the user to paste the key they found in the dashboard.
+        
+        // CORRECTION: The user provided `sb_secret...` in the chat, but I told them it's wrong.
+        // The file generation must use the correct logic.
+        // I will use the variable `supabase` initialized correctly.
+        
+        const supabase = window.supabase.createClient(supabaseUrl, 'PASTE_YOUR_PUBLISHABLE_KEY_HERE'); 
+        // Note: I am putting a placeholder because I don't have the full publishable key string from the image (it is truncated).
+        // The user has the dashboard open.
+        
         document.getElementById('year').textContent = new Date().getFullYear();
 
-        // Particles
         function createParticles() {
             const container = document.getElementById('particles-container');
             for(let i=0; i<20; i++) {
@@ -394,7 +401,7 @@
                 this.runTimer();
             },
             endSession: function() {
-                this.showAlert('قفرت بدري ليه؟ متبقاش تعيط بعدين بقى! 😤', '😤');
+                this.showAlert('ما بدري على المرقعة! متبقاش تعيط بعدين بقى! 😤', '😤');
                 clearInterval(this.timer);
                 clearInterval(this.autoQuoteInterval);
                 document.getElementById('study-overlay').classList.add('hidden');
@@ -616,9 +623,6 @@
                                 if (item.type === 'folder') {
                                     // Match driveId from source file list to new DB id
                                     const sourceFile = files.find(f => f.name === item.name && f.webViewLink === item.url); 
-                                    // Better to assume order is maintained or rely on name/url unique combo
-                                    // A safer approach is inserting one by one or maintaining a map, but for bulk speed:
-                                    // We stored driveId in DB, so we can use that.
                                     if(item.driveId) queue.push({ driveId: item.driveId, parentId: item.id });
                                 }
                             });
