@@ -130,8 +130,8 @@
             <h2 class="text-3xl font-bold text-white mb-2">المذاكرة</h2>
             <p class="text-amber-400 animate-pulse mb-12">بتتصل بيك...</p>
             <div class="flex justify-between items-center px-8">
-                <button onclick="studyApp.rejectCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition transform group-hover:scale-110 reject-animation"><i class="fa-solid fa-phone-slash text-2xl text-white"></i></div><span class="text-sm text-gray-400">كلسن</span></button>
-                <button onclick="studyApp.answerCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation"><i class="fa-solid fa-phone text-2xl text-white"></i></div><span class="text-sm text-gray-400">هترد</span></button>
+                <button onclick="studyApp.rejectCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition transform group-hover:scale-110 reject-animation"><i class="fa-solid fa-phone-slash text-2xl text-white"></i></div><span class="text-sm text-gray-400">كبر دماغك</span></button>
+                <button onclick="studyApp.answerCall()" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 transition transform group-hover:scale-110 call-animation"><i class="fa-solid fa-phone text-2xl text-white"></i></div><span class="text-sm text-gray-400">رد يا بطل</span></button>
             </div>
         </div>
     </div>
@@ -280,24 +280,22 @@
     <!-- Script Section -->
     <script>
         // Supabase Client Setup
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // !!! هام: استبدل المفتاح أدناه بمفتاح ANON PUBLIC إذا واجهت مشاكل أمنية !!!
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const supabaseUrl = 'https://ohulcejufnlajlokahly.supabase.co';
-        const supabaseKey = 'sb_publishable_4-wVTQu5qJZiSIp_qKbnSQ_L-8dM_3pX3H9v2Yf8oN1rG'; // This is a placeholder for the publishable key pattern. The user should replace it with the correct truncated key from their screenshot if needed, but I will put the best guess format based on the screenshot provided in context if visible, or stick to instructions.
-        // Wait, looking at the user screenshot again (image_657a0c.png), the publishable key starts with `sb_publishable_...`.
-        // The user provided `sb_secret_...` in their message. I need to make sure they use the publishable one.
-        // Since I cannot read the full key from the truncated screenshot, I must instruct the user to PASTE IT.
-        // However, the prompt says "I answered which one is the key".
-        // I will use a placeholder and instruct the user to paste the key they found in the dashboard.
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9odWxjZWp1Zm5sYWpsb2thaGx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0ODU1MDIsImV4cCI6MjA4NTA2MTUwMn0.NY5AmOKLw_xQacBQC8bzy1cQAcQxUk8e263KXuF-GjY';
         
-        // CORRECTION: The user provided `sb_secret...` in the chat, but I told them it's wrong.
-        // The file generation must use the correct logic.
-        // I will use the variable `supabase` initialized correctly.
-        
-        const supabase = window.supabase.createClient(supabaseUrl, 'PASTE_YOUR_PUBLISHABLE_KEY_HERE'); 
-        // Note: I am putting a placeholder because I don't have the full publishable key string from the image (it is truncated).
-        // The user has the dashboard open.
-        
+        let db;
+        try {
+            db = window.supabase.createClient(supabaseUrl, supabaseKey);
+        } catch (e) {
+            console.error("Supabase Init Error:", e);
+        }
+
         document.getElementById('year').textContent = new Date().getFullYear();
 
+        // Particles Animation
         function createParticles() {
             const container = document.getElementById('particles-container');
             for(let i=0; i<20; i++) {
@@ -401,7 +399,7 @@
                 this.runTimer();
             },
             endSession: function() {
-                this.showAlert('ما بدري على المرقعة! متبقاش تعيط بعدين بقى! 😤', '😤');
+                this.showAlert('قفرت بدري ليه؟ متبقاش تعيط بعدين بقى! 😤', '😤');
                 clearInterval(this.timer);
                 clearInterval(this.autoQuoteInterval);
                 document.getElementById('study-overlay').classList.add('hidden');
@@ -430,6 +428,8 @@
                 }, 500);
             }
         };
+
+        // Attach app to window to ensure global access for onclick
         window.studyApp = studyApp;
 
         /* === Main App Logic === */
@@ -460,21 +460,28 @@
                 this.fetchData();
 
                 // Realtime subscription
-                supabase.channel('custom-all-channel')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
-                    console.log('Change received!', payload);
-                    this.fetchData();
-                })
-                .subscribe();
+                if(db) {
+                    db.channel('custom-all-channel')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
+                        console.log('Change received!', payload);
+                        this.fetchData();
+                    })
+                    .subscribe();
+                }
             },
 
             fetchData: async function() {
-                const { data, error } = await supabase.from('items').select('*');
+                if(!db) {
+                    // Fallback to empty if db init failed
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    return;
+                }
+                const { data, error } = await db.from('items').select('*');
                 if (error) {
                     console.error("Error fetching data:", error);
-                    alert("خطأ في جلب البيانات");
+                    alert("خطأ في جلب البيانات: " + error.message);
                 } else {
-                    this.data = data;
+                    this.data = data || [];
                     document.getElementById('loading-indicator').classList.add('hidden');
                     this.render();
                 }
@@ -525,7 +532,7 @@
                     const idsToDelete = allDescendants.map(i => i.id);
                     
                     if (idsToDelete.length > 0) {
-                        const { error } = await supabase.from('items').delete().in('id', idsToDelete);
+                        const { error } = await db.from('items').delete().in('id', idsToDelete);
                         if (error) throw error;
                     }
 
@@ -537,6 +544,7 @@
                 } finally {
                     document.getElementById('loading-indicator').classList.add('hidden');
                     document.getElementById('loading-text').textContent = "جاري الاتصال بقاعدة البيانات...";
+                    this.fetchData(); // Refresh View
                 }
             },
 
@@ -544,9 +552,7 @@
                 let descendants = [];
                 let children = this.data.filter(item => item.parentId === parentId);
                 descendants.push(...children);
-                children.forEach(child => {
-                    if (child.type === 'folder') descendants.push(...this.getAllDescendants(child.id));
-                });
+                children.forEach(child => { if (child.type === 'folder') descendants.push(...this.getAllDescendants(child.id)); });
                 return descendants;
             },
 
@@ -575,6 +581,7 @@
                         document.getElementById('import-drive-link').value = '';
                         statusEl.classList.add('hidden');
                         btn.disabled = false; btn.classList.remove('opacity-50');
+                        this.fetchData(); // Refresh data
                     }, 2000);
                 } catch (error) {
                     statusEl.innerHTML = `<span class="text-red-400">خطأ: ${error.message}</span>`;
@@ -603,30 +610,54 @@
                         pageToken = result.nextPageToken;
 
                         if (files && files.length > 0) {
-                            const itemsToInsert = files.map(file => {
+                            const itemsToInsert = [];
+                            
+                            // Check existing items first (Optimization: Fetch only for current parent)
+                            // We check DB to avoid duplicates
+                            
+                            let queryBuilder = db.from('items').select('name, type, id, driveId');
+                            if (current.parentId) queryBuilder = queryBuilder.eq('parentId', current.parentId);
+                            else queryBuilder = queryBuilder.is('parentId', null);
+                            
+                            const { data: existingItems } = await queryBuilder;
+                            const existingMap = new Set(existingItems ? existingItems.map(i => `${i.name}|${i.type}`) : []);
+
+                            for (const file of files) {
                                 const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
-                                return {
-                                    type: isFolder ? 'folder' : 'file',
-                                    name: file.name,
-                                    url: file.webViewLink,
-                                    "parentId": current.parentId, // Note quotes for exact case if column is camelCase
-                                    "driveId": file.id
-                                };
-                            });
-                            
-                            // Insert into Supabase
-                            const { data: insertedItems, error } = await supabase.from('items').insert(itemsToInsert).select();
-                            if(error) throw error;
-                            
-                            // Add subfolders to queue
-                            insertedItems.forEach(item => {
-                                if (item.type === 'folder') {
-                                    // Match driveId from source file list to new DB id
-                                    const sourceFile = files.find(f => f.name === item.name && f.webViewLink === item.url); 
-                                    if(item.driveId) queue.push({ driveId: item.driveId, parentId: item.id });
+                                const type = isFolder ? 'folder' : 'file';
+                                const key = `${file.name}|${type}`;
+                                
+                                if (!existingMap.has(key)) {
+                                    itemsToInsert.push({
+                                        type: type,
+                                        name: file.name,
+                                        url: file.webViewLink,
+                                        "parentId": current.parentId,
+                                        "driveId": file.id
+                                    });
+                                } else {
+                                    // Item exists. If it is a folder, we still need to traverse it.
+                                    if (isFolder) {
+                                        const existingItem = existingItems.find(i => i.name === file.name && i.type === 'folder');
+                                        if (existingItem) {
+                                            queue.push({ driveId: file.id, parentId: existingItem.id });
+                                        }
+                                    }
                                 }
-                            });
-                            totalImported += itemsToInsert.length;
+                            }
+                            
+                            if (itemsToInsert.length > 0) {
+                                const { data: insertedItems, error } = await db.from('items').insert(itemsToInsert).select();
+                                if(error) throw error;
+                                
+                                insertedItems.forEach(item => {
+                                    if (item.type === 'folder') {
+                                        const sourceFile = files.find(f => f.name === item.name);
+                                        if(sourceFile) queue.push({ driveId: sourceFile.id, parentId: item.id });
+                                    }
+                                });
+                                totalImported += itemsToInsert.length;
+                            }
                         }
                     } while (pageToken);
                 }
@@ -640,16 +671,16 @@
                 
                 document.getElementById('loading-indicator').classList.remove('hidden');
                 // Delete everything where id is not null (basically all rows)
-                const { error } = await supabase.from('items').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 
+                const { error } = await db.from('items').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 
                 if(error) alert("خطأ في الحذف");
-                else { alert("تم تصفير الموقع"); this.goHome(); }
+                else { alert("تم تصفير الموقع"); this.data = []; this.render(); this.goHome(); }
                 document.getElementById('loading-indicator').classList.add('hidden');
             },
 
             convertDriveLink: function(url) {
                 let fileId = "";
-                if (url.indexOf('id=') > -1) { const match = url.match(/id=([a-zA-Z0-9_-]{25,})/); if(match) fileId = match[1]; } 
-                else { const match = url.match(/\/d\/([a-zA-Z0-9_-]{25,})/); if(match) fileId = match[1]; }
+                if (url && url.indexOf('id=') > -1) { const match = url.match(/id=([a-zA-Z0-9_-]{25,})/); if(match) fileId = match[1]; } 
+                else if (url) { const match = url.match(/\/d\/([a-zA-Z0-9_-]{25,})/); if(match) fileId = match[1]; }
                 if (!fileId) return { preview: url, download: url };
                 return { preview: `https://drive.google.com/file/d/${fileId}/preview`, download: `https://drive.google.com/uc?export=download&id=${fileId}` };
             },
@@ -747,21 +778,26 @@
             createFolder: function() {
                 const name = document.getElementById('new-folder-name').value;
                 if (!name) return alert('ادخل الاسم');
-                supabase.from('items').insert({ type: 'folder', name: name, "parentId": this.currentFolderId }).then(({error}) => { if(error) alert('خطأ'); else this.closeModal('add-folder'); });
+                db.from('items').insert({ type: 'folder', name: name, "parentId": this.currentFolderId }).then(({error}) => { if(error) alert('خطأ'); else this.closeModal('add-folder'); });
             },
             createFile: function() {
                 const name = document.getElementById('new-file-name').value;
                 const link = document.getElementById('new-file-link').value;
                 if (!name || !link) return alert('بيانات ناقصة');
-                supabase.from('items').insert({ type: 'file', name: name, url: link, "parentId": this.currentFolderId }).then(({error}) => { if(error) alert('خطأ'); else this.closeModal('add-file'); });
+                db.from('items').insert({ type: 'file', name: name, url: link, "parentId": this.currentFolderId }).then(({error}) => { if(error) alert('خطأ'); else this.closeModal('add-file'); });
             },
             deleteItem: function(id) {
-                if(confirm('حذف العنصر؟')) supabase.from('items').delete().eq('id', id).then(({error}) => { if(error) alert('خطأ'); });
+                if(confirm('حذف العنصر؟')) db.from('items').delete().eq('id', id).then(({error}) => { if(error) alert('خطأ'); });
             }
         };
 
+        // Attach app to window to ensure global access for onclick
         window.app = app;
-        app.init();
+        
+        // Wait for DOM to be ready before init
+        document.addEventListener('DOMContentLoaded', () => {
+             app.init();
+        });
     </script>
 </body>
 </html>
