@@ -39,13 +39,12 @@
         .home-card:hover { transform: scale(1.02); border-color: var(--primary-color); }
 
         /* Notes Viewer */
-        .notes-area {
-            background-color: #1e293b;
-            color: #e2e8f0;
-            resize: none;
-            border: 1px solid #334155;
-        }
+        .notes-area { background-color: #1e293b; color: #e2e8f0; resize: none; border: 1px solid #334155; }
         .notes-area:focus { outline: none; border-color: var(--primary-color); }
+        
+        /* Viewer Iframe */
+        .viewer-container { height: 80vh; }
+        @media (max-width: 768px) { .viewer-container { height: 70vh; } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -138,14 +137,14 @@
                 <span class="text-xs font-normal text-gray-400">وضع التعديل</span>
             </h3>
             <div class="flex gap-3 flex-wrap items-center">
-                <button onclick="app.openModal('import-drive')" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2 border border-yellow-500/50 shadow-lg shadow-yellow-500/20"><i class="fa-brands fa-google-drive"></i> استيراد جديد</button>
+                <button onclick="app.openModal('import-drive')" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2 border border-yellow-500/50 shadow-lg shadow-yellow-500/20"><i class="fa-brands fa-google-drive"></i> استيراد (إضافة الجديد فقط)</button>
                 <div class="w-px h-8 bg-gray-600 mx-2 hidden md:block"></div>
                 <button onclick="app.openModal('add-folder')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"><i class="fa-solid fa-folder-plus ml-2"></i> مجلد يدوي</button>
                 <button onclick="app.openModal('add-file')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition text-sm"><i class="fa-solid fa-file-upload ml-2"></i> ملف يدوي</button>
                 <div class="w-px h-8 bg-gray-600 mx-2 hidden md:block"></div>
-                <button onclick="app.wipeAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"><i class="fa-solid fa-skull-crossbones"></i> حذف الموقع بالكامل</button>
+                <button onclick="app.wipeAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"><i class="fa-solid fa-skull-crossbones"></i> حذف الكل (خطير)</button>
             </div>
-            <p class="text-[10px] text-gray-400 mt-2">* لتحديث مجلد معين، اضغط على أيقونة التحديث <i class="fa-solid fa-sync text-cyan-400"></i> الموجودة فوق المجلد.</p>
+            <p class="text-[10px] text-gray-400 mt-2">* الاستيراد الآن يقوم بإضافة الملفات والمجلدات الجديدة فقط ولا يحذف أو يكرر القديم.</p>
         </div>
 
         <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
@@ -322,6 +321,7 @@
             <button onclick="app.closeModal('file-action')" class="mt-6 text-sm text-gray-500 hover:text-white underline">إغلاق</button>
         </div>
     </div>
+    
     <div id="modal-notebook-guide" class="fixed inset-0 bg-black/80 hidden z-[60] flex items-center justify-center backdrop-blur-sm">
         <div class="glass-panel p-8 rounded-xl w-full max-w-lg mx-4 text-center relative border border-purple-500/30">
             <div class="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-clipboard-check text-3xl text-purple-400"></i></div>
@@ -475,20 +475,18 @@
                 }, 500);
             }
         };
+
         window.studyApp = studyApp;
 
         /* === Notes Logic === */
         const notesApp = {
             currentFileId: null,
-            
             loadNotes: function(fileId) {
                 this.currentFileId = fileId;
                 const saved = localStorage.getItem('notes_' + fileId) || '';
                 const textarea = document.getElementById('file-notes');
                 textarea.value = saved;
                 document.getElementById('save-status').textContent = 'محفوظ';
-                
-                // Save on typing
                 textarea.oninput = () => {
                     localStorage.setItem('notes_' + fileId, textarea.value);
                     document.getElementById('save-status').textContent = 'جارِ الحفظ...';
@@ -496,7 +494,8 @@
                 };
             }
         };
-        
+        window.notesApp = notesApp;
+
         /* === Main App Logic === */
         const app = {
             data: [], 
@@ -505,21 +504,16 @@
             searchQuery: '',
             selectedItems: new Set(),
             currentFileUrl: '',
-            currentBranch: null, // 'math' or 'science'
+            currentBranch: null, 
             
             init: function() {
                 setTimeout(() => { this.openModal('welcome'); }, 1000);
-                
-                // Show Home Page by default
                 document.getElementById('home-section').classList.remove('hidden');
                 document.getElementById('content-section').classList.add('hidden');
                 document.querySelector('header').classList.remove('hidden');
-
                 document.getElementById('loading-indicator').classList.remove('hidden');
                 const savedKey = localStorage.getItem('googleDriveApiKey');
                 if(savedKey) document.getElementById('import-api-key').value = savedKey;
-
-                // Load Data
                 this.fetchData();
                 if(db) {
                     db.channel('custom-all-channel')
@@ -527,9 +521,21 @@
                         this.fetchData();
                     }).subscribe();
                 }
+                history.replaceState({ folderId: null }, '', '');
+                window.onpopstate = (event) => {
+                    if (event.state) {
+                        this.currentFolderId = event.state.folderId;
+                        this.searchQuery = ''; 
+                        this.clearSelection(); 
+                        document.getElementById('search-input').value = '';
+                        this.render();
+                    } else {
+                        this.currentFolderId = null;
+                        this.render();
+                    }
+                };
             },
 
-            // --- Home Page & Branch Logic ---
             showHomePage: function() {
                 document.getElementById('home-section').classList.remove('hidden');
                 document.getElementById('content-section').classList.add('hidden');
@@ -538,19 +544,15 @@
             },
 
             showContentPage: function() {
-                // If user clicks from home, default to no branch or show branch selection modal?
-                // Let's default to Math for now or just show the content page
                 document.getElementById('home-section').classList.add('hidden');
                 document.getElementById('content-section').classList.remove('hidden');
-                if(!this.currentBranch) this.setBranch('math'); // Default
+                if(!this.currentBranch) this.setBranch('math'); 
             },
 
             setBranch: function(branch) {
                 this.currentBranch = branch;
-                // Update UI buttons
                 const btnMath = document.getElementById('tab-math');
                 const btnSci = document.getElementById('tab-science');
-                
                 if (branch === 'math') {
                     btnMath.className = "px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 bg-cyan-600 text-white shadow-lg shadow-cyan-500/30";
                     btnSci.className = "px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 text-gray-400 hover:text-white";
@@ -558,19 +560,20 @@
                     btnSci.className = "px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 bg-cyan-600 text-white shadow-lg shadow-cyan-500/30";
                     btnMath.className = "px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 text-gray-400 hover:text-white";
                 }
-                
-                // Reset to root and render
                 this.currentFolderId = null;
                 this.render();
             },
 
-            isMathDept: function(name) {
-                const mathDepts = ['فيزياء', 'فيزياء وعلوم الحاسب', 'كيمياء سبيشيال', 'علوم الحاسب', 'رياضيات', 'الرياضيات', 'Math', 'Physics', 'CS'];
-                // Check if name contains any of these
-                return mathDepts.some(dept => name.includes(dept));
+            classifyItem: function(name) {
+                const sharedKeywords = ['عام', 'مشترك', 'General', 'Common', 'ثقافية', 'متطلبات', 'لغة', 'Language', 'جينرال', 'ترم', 'مستوى'];
+                const mathKeywords = ['فيزياء', 'Physics', 'حاسب', 'CS', 'Computer', 'رياضة', 'رياضيات', 'Math', 'فلك', 'Astronomy'];
+                if (sharedKeywords.some(k => name.includes(k))) return 'shared';
+                if (mathKeywords.some(k => name.includes(k))) return 'math';
+                return 'science';
             },
 
-            // --- Existing Logic ---
+            isMathDept: function(name) { return this.classifyItem(name) === 'math'; },
+
             fetchData: async function() {
                 if(!db) { document.getElementById('loading-indicator').classList.add('hidden'); return; }
                 const { data, error } = await db.from('items').select('*');
@@ -578,7 +581,6 @@
                 else {
                     this.data = data || [];
                     document.getElementById('loading-indicator').classList.add('hidden');
-                    // Only render if we are in content view
                     if(!document.getElementById('content-section').classList.contains('hidden')) {
                         this.render();
                     }
@@ -615,21 +617,18 @@
                 const grid = document.getElementById('content-grid');
                 grid.innerHTML = '';
                 
-                // Filter logic
                 let itemsToShow = [];
                 if (this.searchQuery) {
                      itemsToShow = this.data.filter(i => i.name && i.name.toLowerCase().includes(this.searchQuery));
                 } else {
-                    // Filter by Parent ID
                     let baseItems = this.data.filter(i => i.parentId === this.currentFolderId);
-                    
-                    // Filter by Branch (Only at Root Level)
                     if (this.currentFolderId === null) {
                         itemsToShow = baseItems.filter(item => {
-                            if (item.type !== 'folder') return true; // Show files anyway
-                            const isMath = this.isMathDept(item.name);
-                            if (this.currentBranch === 'math') return isMath;
-                            if (this.currentBranch === 'science') return !isMath;
+                            if (item.type !== 'folder') return true; 
+                            const category = this.classifyItem(item.name);
+                            if (category === 'shared') return true;
+                            if (this.currentBranch === 'math') return category === 'math';
+                            if (this.currentBranch === 'science') return category === 'science';
                             return true;
                         });
                     } else {
@@ -646,9 +645,14 @@
                     if (item.type === 'folder') {
                         el.className = 'folder-card glass-panel p-6 rounded-xl cursor-pointer flex flex-col items-center justify-center text-center group h-48 relative';
                         el.onclick = (e) => { if(!e.target.closest('button')) this.navigateTo(item.id); };
+                        
                         const refreshBtn = (this.isAdmin && item.driveId) ? `<button onclick="app.refreshSpecificFolder('${item.id}', '${item.driveId}', '${item.name}')" title="تحديث" class="absolute top-2 right-2 text-cyan-400 hover:text-white p-2 bg-slate-900/50 hover:bg-cyan-600 rounded-full w-8 h-8 flex items-center justify-center transition hover:rotate-180 z-20 spin-click"><i class="fa-solid fa-sync text-xs"></i></button>` : '';
                         const deleteBtn = this.isAdmin ? `<button onclick="app.deleteItem('${item.id}')" class="delete-btn absolute top-2 left-2 text-red-400 hover:text-red-600 p-2 z-20"><i class="fa-solid fa-trash"></i></button>` : '';
-                        el.innerHTML = `${refreshBtn} ${deleteBtn} <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition"><i class="fa-solid fa-folder text-4xl text-blue-400 group-hover:scale-110 transition"></i></div><h3 class="font-bold text-lg text-gray-100">${item.name}</h3><p class="text-xs text-gray-500 mt-1">${this.countItems(item.id)} عنصر</p>`;
+                        const isShared = this.classifyItem(item.name) === 'shared';
+                        const iconColor = isShared ? 'text-purple-400' : 'text-blue-400';
+                        const badge = isShared ? '<span class="absolute top-2 left-1/2 transform -translate-x-1/2 bg-purple-500/20 text-purple-300 text-[10px] px-2 rounded-full border border-purple-500/30">عام</span>' : '';
+
+                        el.innerHTML = `${refreshBtn} ${deleteBtn} ${badge} <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition"><i class="fa-solid fa-folder text-4xl ${iconColor} group-hover:scale-110 transition"></i></div><h3 class="font-bold text-lg text-gray-100">${item.name}</h3><p class="text-xs text-gray-500 mt-1">${this.countItems(item.id)} عنصر</p>`;
                     } else {
                         const isSelected = this.selectedItems.has(item.id);
                         el.className = `file-card glass-panel p-4 rounded-xl cursor-pointer flex items-center gap-4 group relative overflow-hidden transition ${isSelected ? 'file-selected' : ''}`;
@@ -673,14 +677,11 @@
             },
 
             openViewer: function(file) {
-                // Determine file ID for notes
                 const fileId = file ? file.id : null; 
-                if(!fileId) return; // Should not happen
+                if(!fileId) return; 
 
-                // Setup Notes
                 notesApp.loadNotes(fileId);
 
-                // Setup Iframe
                 let driveId = '';
                 const match = this.currentFileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
                 if (match) driveId = match[1];
@@ -740,7 +741,9 @@
             },
             navigateTo: function(folderId) {
                 this.currentFolderId = folderId; this.searchQuery = ''; this.clearSelection(); 
-                document.getElementById('search-input').value = ''; this.render();
+                document.getElementById('search-input').value = '';
+                history.pushState({ folderId: folderId }, '', '');
+                this.render();
             },
             goHome: function() {
                 this.showHomePage();
@@ -806,8 +809,7 @@
                 const match = link.match(/folders\/([a-zA-Z0-9_-]+)/);
                 if (match) rootFolderId = match[1]; else return alert("الرابط غير صحيح");
                 localStorage.setItem('googleDriveApiKey', apiKey);
-                statusEl.classList.remove('hidden');
-                btn.disabled = true; btn.classList.add('opacity-50');
+                statusEl.classList.remove('hidden'); btn.disabled = true; btn.classList.add('opacity-50');
                 try {
                     await this.runRecursiveImport(rootFolderId, this.currentFolderId, apiKey, (msg) => {
                         statusEl.innerHTML = `<span class="text-yellow-400"><i class="fa-solid fa-spinner fa-spin"></i> ${msg}</span>`;
@@ -832,7 +834,7 @@
                     let pageToken = null;
                     do {
                         const query = `'${current.driveId}' in parents and trashed = false`;
-                        let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&key=${apiKey}&fields=nextPageToken,files(id,name,mimeType,webViewLink)&pageSize=100`;
+                        let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&key=${apiKey}&fields=nextPageToken,files(id,name,mimeType,webViewLink,shortcutDetails)&pageSize=100`;
                         if(pageToken) url += `&pageToken=${pageToken}`;
                         const res = await fetch(url);
                         const result = await res.json();
@@ -847,15 +849,31 @@
                             const { data: existingItems } = await queryBuilder;
                             const existingMap = new Set(existingItems ? existingItems.map(i => `${i.name}|${i.type}`) : []);
                             for (const file of files) {
-                                const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                                let isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                                let driveIdToSave = file.id;
+
+                                // Handle Shortcuts
+                                if (file.mimeType === 'application/vnd.google-apps.shortcut' && file.shortcutDetails) {
+                                    if (file.shortcutDetails.targetMimeType.includes('folder')) {
+                                        isFolder = true;
+                                        driveIdToSave = file.shortcutDetails.targetId; // Use target ID for traversing
+                                    } else {
+                                        // Treat shortcut to file as a file
+                                        isFolder = false;
+                                        // For file shortcuts, we might want to keep original ID or target. 
+                                        // Usually target ID is better for download links.
+                                        driveIdToSave = file.shortcutDetails.targetId;
+                                    }
+                                }
+
                                 const type = isFolder ? 'folder' : 'file';
                                 const key = `${file.name}|${type}`;
                                 if (!existingMap.has(key)) {
-                                    itemsToInsert.push({ type: type, name: file.name, url: file.webViewLink, "parentId": current.parentId, "driveId": file.id });
+                                    itemsToInsert.push({ type: type, name: file.name, url: file.webViewLink, "parentId": current.parentId, "driveId": driveIdToSave });
                                 } else {
                                     if (isFolder) {
                                         const existingItem = existingItems.find(i => i.name === file.name && i.type === 'folder');
-                                        if (existingItem) { queue.push({ driveId: file.id, parentId: existingItem.id }); }
+                                        if (existingItem) { queue.push({ driveId: driveIdToSave, parentId: existingItem.id }); }
                                     }
                                 }
                             }
@@ -864,8 +882,9 @@
                                 if(error) throw error;
                                 insertedItems.forEach(item => {
                                     if (item.type === 'folder') {
-                                        const sourceFile = files.find(f => f.name === item.name);
-                                        if(sourceFile) queue.push({ driveId: sourceFile.id, parentId: item.id });
+                                        // We need to find the correct drive ID for this inserted item to continue recursion
+                                        // We stored the correct target ID in driveId column
+                                        if(item.driveId) queue.push({ driveId: item.driveId, parentId: item.id });
                                     }
                                 });
                                 totalImported += itemsToInsert.length;
@@ -889,7 +908,7 @@
 
         window.app = app;
         window.studyApp = studyApp;
-        window.notesApp = notesApp; // Important to expose notesApp
+        window.notesApp = notesApp;
 
         document.addEventListener('DOMContentLoaded', () => {
              app.init();
